@@ -1,0 +1,58 @@
+syntax = "v1"
+
+type (
+	Token {
+		AccessToken  string `json:"access_token"`
+		AccessExpire int64  `json:"access_expire"`
+	}
+	RegisterRequest {
+		Name             string `json:"name"`
+		Mobile           string `json:"mobile"`
+		Password         string `json:"password"`
+		VerificationCode string `json:"verification_code"`
+	}
+	RegisterResponse {
+		UserId int64 `json:"user_id"`
+		Token  Token `json:"token"`
+	}
+	VerificationRequest {
+		Mobile string `json:"mobile"`
+	}
+	VerificationResponse {
+	}
+	LoginRequest {
+		Mobile           string `json:"mobile"`
+		VerificationCode string `json:"verification_code"`
+	}
+	LoginResponse {
+		UserId int64 `json:"userId"`
+		Token  Token `json:"token"`
+	}
+	UserInfoResponse {
+		UserId   int64  `json:"user_id"`
+		Username string `json:"username"`
+		Avatar   string `json:"avatar"`
+	}
+)
+
+@server (
+	prefix: /v1
+)
+service applet-api {
+	@handler RegisterHandler
+	post /register (RegisterRequest) returns (RegisterResponse)
+	@handler VerificationHandler
+	post /verification (VerificationRequest) returns (VerificationResponse)
+	@handler LoginHandler
+	post /login (LoginRequest) returns (LoginResponse)
+}
+
+@server (
+	prefix: /v1/user
+	signature: true
+	jwt: Auth
+)
+service applet-api {
+	@handler UserInfoHandler
+	get /info returns (UserInfoResponse)
+}
