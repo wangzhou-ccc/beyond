@@ -3,6 +3,7 @@ package logic
 import (
 	"context"
 
+	"github.com/wangzhou-ccc/beyond/application/user/rpc/internal/model"
 	"github.com/wangzhou-ccc/beyond/application/user/rpc/internal/svc"
 	"github.com/wangzhou-ccc/beyond/application/user/rpc/service"
 
@@ -25,7 +26,7 @@ func NewFindByMobileLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Find
 
 func (l *FindByMobileLogic) FindByMobile(in *service.FindByMobileRequest) (*service.FindByMobileResponse, error) {
 	user, err := l.svcCtx.UserModel.FindOneByMobile(l.ctx, in.Mobile)
-	if err != nil {
+	if err != nil && err != model.ErrNotFound {
 		logx.Errorf("FindByMobile mobile: %s error: %v", in.Mobile, err)
 		return nil, err
 	}

@@ -105,7 +105,7 @@ func checkVerificationCode(rds *redis.Redis, mobile, code string) error {
 		return err
 	}
 	if cacheCode == "" {
-		return errors.New("verification code expired")
+		return errors.New("verification code expired or mobile type wrong")
 	}
 	if cacheCode != code {
 		return errors.New("verification code failed")
