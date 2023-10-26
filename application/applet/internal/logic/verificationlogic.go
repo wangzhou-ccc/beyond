@@ -18,7 +18,7 @@ import (
 const (
 	prefixVerificationCount = "biz#verification#count#%s"
 	verificationLimitPerDay = 10
-	expireActivation        = 60 * 30
+	expireActivation        = 60 * 30 //key的过期时间为30分钟
 )
 
 type VerificationLogic struct {
@@ -44,12 +44,12 @@ func (l *VerificationLogic) Verification(req *types.VerificationRequest) (resp *
 		return nil, err
 	}
 	// 30分钟内验证码不再变化
-	code, err := getActivationCache(req.Mobile, l.svcCtx.BizRedis)
+	code, err := getActivationCache(req.Mobile, l.svcCtx.BizRedis) //先从Redis缓存中获取
 	if err != nil {
 		logx.Errorf("getActivationCache mobile: %s error: %v", req.Mobile, err)
 	}
 	if len(code) == 0 {
-		code = util.RandomNumeric(6)
+		code = util.RandomNumeric(6) //生成验证码
 	}
 	_, err = l.svcCtx.UserRPC.SendSms(l.ctx, &user.SendSmsRequest{
 		Mobile: req.Mobile,
