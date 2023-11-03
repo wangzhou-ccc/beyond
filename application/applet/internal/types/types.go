@@ -23,6 +23,7 @@ type VerificationRequest struct {
 }
 
 type VerificationResponse struct {
+	KeyCode string `json:"key_code"`
 }
 
 type LoginRequest struct {
