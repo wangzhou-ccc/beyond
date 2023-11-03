@@ -19,6 +19,7 @@ type (
 		Mobile string `json:"mobile"`
 	}
 	VerificationResponse {
+		KeyCode string `json:"key_code"`
 	}
 	LoginRequest {
 		Mobile           string `json:"mobile"`
