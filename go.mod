@@ -11,6 +11,13 @@ require (
 )
 
 require (
+	github.com/klauspost/compress v1.15.15 // indirect
+	github.com/pierrec/lz4/v4 v4.1.17 // indirect
+	github.com/segmentio/kafka-go v0.4.38 // indirect
+	github.com/zeromicro/go-queue v1.1.8 // indirect
+)
+
+require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
