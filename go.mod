@@ -4,17 +4,21 @@ go 1.21
 
 require (
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.1+incompatible
+	github.com/zeromicro/go-queue v1.1.8
 	github.com/zeromicro/go-zero v1.5.6
 	golang.org/x/sync v0.3.0
 	google.golang.org/grpc v1.58.2
 	google.golang.org/protobuf v1.31.0
+	gorm.io/driver/mysql v1.5.2
+	gorm.io/gorm v1.25.5
 )
 
 require (
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/compress v1.15.15 // indirect
 	github.com/pierrec/lz4/v4 v4.1.17 // indirect
 	github.com/segmentio/kafka-go v0.4.38 // indirect
-	github.com/zeromicro/go-queue v1.1.8 // indirect
 )
 
 require (
