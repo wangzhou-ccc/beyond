@@ -73,7 +73,6 @@ services:
   kafdrop:
     image: 'obsidiandynamics/kafdrop:latest'
     container_name: 'kafdrop'
-
     ports:
       - '39000:9000'
     environment:
@@ -84,6 +83,26 @@ services:
       - beyond
     depends_on:
       - kafka
+  # ===prometheus===
+  prometheus:
+    image: 'bitnami/prometheus:latest'
+    container_name: prometheus
+    restart: always
+    ports:
+      - 9090:9090
+    networks:
+      - beyond
+  # ===jaeger===
+  #暴露在6831/udp（用于接收span）、16686（用于UI）和14268（用于接收span）端口
+  jaeger:
+    image: 'jaegertracing/all-in-one:latest'
+    container_name: jaeger
+    ports:
+      - 6831:6831/udp
+      - 16686:16686
+      - 14268:14268
+    networks:
+      - beyond
 
 networks:
   beyond:
