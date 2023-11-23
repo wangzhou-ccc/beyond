@@ -1,4 +1,5 @@
 create database beyond_like;
+
 use beyond_like;
 
 CREATE TABLE `like` (
@@ -10,7 +11,7 @@ CREATE TABLE `like` (
     `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
     PRIMARY KEY (`id`),
-    KEY `ix_mtime` (`mtime`)
+    KEY `ix_mtime` (`update_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='点赞表';
 
 CREATE TABLE `like_count` (
@@ -22,5 +23,5 @@ CREATE TABLE `like_count` (
     `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `update_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后修改时间',
     PRIMARY KEY (`id`),
-    KEY `ix_mtime` (`mtime`)
+    KEY `ix_mtime` (`update_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='点赞计数表';

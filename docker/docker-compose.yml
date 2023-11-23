@@ -1,0 +1,90 @@
+version: "2.2"
+services:
+  # ===mysql===
+  mysql:
+    image: 'mysql:5.7'
+    container_name: mysql
+    restart: always
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+    # volumes:
+    #   - ./mysql/data:/var/lib/mysql
+    #   - ./mysql/conf:/etc/mysql/conf.d
+    #   - ./mysql/logs:/var/log/mysql
+    networks:
+      - beyond
+  # ===canal===
+  canal:
+    image: 'canal/canal-server:v1.1.7'
+    container_name: canal
+    ports:
+      - 11111:11111 #canal默认端口号，一般不用改，除非端口冲突
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+    networks:
+      - beyond
+  # ===zookeeper===
+  zookeeper:
+    image: 'zookeeper:latest'
+    ports:
+      - '2181:2181'
+    environment:
+      # 匿名登录--必须开启
+      - ALLOW_ANONYMOUS_LOGIN=yes
+    networks:
+      - beyond
+  #volumes:
+  #- ./zookeeper:/bitnami/zookeeper
+
+  # 该镜像具体配置参考 https://github.com/bitnami/bitnami-docker-kafka/blob/master/README.md
+  # ===kafka===
+  kafka:
+    image: 'wurstmeister/kafka:latest'
+    container_name: 'kafka'
+    ports:
+      - '9092:9092'
+    environment:
+      - KAFKA_BROKER_ID=0
+      - KAFKA_LISTENERS=PLAINTEXT://0.0.0.0:9092
+      # 客户端访问地址，更换成自己的
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://host.docker.internal:9092
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      # 允许使用PLAINTEXT协议(镜像中默认为关闭,需要手动开启)
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      # 关闭自动创建 topic 功能
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=false
+      # 全局消息过期时间 6 小时(测试时可以设置短一点)
+      - KAFKA_CFG_LOG_RETENTION_HOURS=1
+      # 开启JMX监控
+      #- JMX_PORT=9999
+    #volumes:
+    #- ./kafka:/bitnami/kafka
+    depends_on:
+      - zookeeper
+    networks:
+      - beyond
+  # Web 管理界面 另外也可以用exporter+prometheus+grafana的方式来监控 https://github.com/danielqsj/kafka_exporter
+  # ===kafka_manager===
+  kafdrop:
+    image: 'obsidiandynamics/kafdrop:latest'
+    container_name: 'kafdrop'
+
+    ports:
+      - '39000:9000'
+    environment:
+      - KAFKA_BROKERCONNECT=host.docker.internal:9092
+      - JVM_OPTS=-Xms32M -Xmx64M
+      - SERVER_SERVLET_CONTEXTPATH=/
+    networks:
+      - beyond
+    depends_on:
+      - kafka
+
+networks:
+  beyond:
+    driver: bridge
