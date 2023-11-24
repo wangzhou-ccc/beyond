@@ -2,9 +2,16 @@ package logic
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"time"
 
+	A "github.com/IBM/fp-go/array"
+	RIOE "github.com/IBM/fp-go/context/readerioeither"
+	E "github.com/IBM/fp-go/either"
+	F "github.com/IBM/fp-go/function"
+	O "github.com/IBM/fp-go/option"
+	T "github.com/IBM/fp-go/tuple"
 	"github.com/wangzhou-ccc/beyond/application/follow/code"
 	"github.com/wangzhou-ccc/beyond/application/follow/rpc/internal/model"
 	"github.com/wangzhou-ccc/beyond/application/follow/rpc/internal/svc"
@@ -143,6 +150,138 @@ func (l *FollowListLogic) FollowList(in *pb.FollowListRequest) (*pb.FollowListRe
 	}
 
 	return ret, nil
+}
+
+func (l *FollowListLogic) FollowListFP(in *pb.FollowListRequest) (*pb.FollowListResponse, error) {
+	cacheFollowUserIds := T.Tupled3(RIOE.Eitherize3(l.cacheFollowUserIds))
+	findByFollowedUserIds := RIOE.Eitherize1(l.svcCtx.FollowModel.FindByFollowedUserIds)
+
+	inputPipe := F.Pipe2(
+		T.MakeTuple3(in.UserId, in.Cursor, in.PageSize),
+		func(t T.Tuple3[int64, int64, int64]) E.Either[error, T.Tuple3[int64, int64, int64]] {
+			if t.F1 == 0 {
+				return E.Left[T.Tuple3[int64, int64, int64], error](code.UserIdEmpty)
+			}
+
+			return E.Right[error](t)
+		},
+		E.Chain(func(t T.Tuple3[int64, int64, int64]) E.Either[error, T.Tuple3[int64, int64, int64]] {
+			var (
+				pageSize = t.F2
+				cursor   = t.F3
+			)
+
+			if pageSize == 0 {
+				pageSize = types.DefaultPageSize
+			}
+
+			if cursor == 0 {
+				cursor = time.Now().Unix()
+			}
+
+			return E.Right[error](T.MakeTuple3(t.F1, cursor, pageSize))
+		}),
+	)
+
+	followsPipe := F.Pipe1(
+		RIOE.FromEither(inputPipe),
+		RIOE.Chain(func(in T.Tuple3[int64 /* userId */, int64 /* cursor */, int64 /* pageSize */]) RIOE.ReaderIOEither[T.Tuple2[[]*model.Follow, bool /* is end */]] {
+			return F.Pipe4(
+				in,
+				cacheFollowUserIds,
+				RIOE.Chain(func(userIds []int64) RIOE.ReaderIOEither[[]int64] {
+					if len(userIds) == 0 {
+						return RIOE.Left[[]int64](errors.New("follow user id missing in cache"))
+					}
+
+					return RIOE.Right(userIds[:len(userIds)-1])
+				}),
+				RIOE.Chain(func(userIds []int64) RIOE.ReaderIOEither[T.Tuple2[[]*model.Follow, bool]] {
+					if len(userIds) == 0 {
+						return RIOE.Right(T.MakeTuple2([]*model.Follow{}, true))
+					} else {
+						return RIOE.SequenceParT2(findByFollowedUserIds(userIds), RIOE.Right[bool](false))
+					}
+				}),
+				RIOE.OrElse(func(err error) RIOE.ReaderIOEither[T.Tuple2[[]*model.Follow, bool]] {
+					if errors.Is(err, code.UserIdEmpty) {
+						return RIOE.Left[T.Tuple2[[]*model.Follow, bool]](err)
+					}
+
+					return F.Pipe2(
+						T.MakeTuple2(in.F1, types.CacheMaxFollowCount),
+						T.Tupled2(RIOE.Eitherize2(l.svcCtx.FollowModel.FindByUserId)),
+						RIOE.Chain(func(follows []*model.Follow) RIOE.ReaderIOEither[T.Tuple2[[]*model.Follow, bool]] {
+							if len(follows) > int(in.F3) {
+								return RIOE.Right(T.MakeTuple2(follows[:in.F3], false))
+							} else {
+								return RIOE.Right(T.MakeTuple2(follows, true))
+							}
+						}),
+					)
+				}),
+			)
+		}),
+	)
+
+	composeOut := F.Pipe2(
+		followsPipe,
+		RIOE.Chain(func(i T.Tuple2[[]*model.Follow, bool /* is end */]) RIOE.ReaderIOEither[T.Tuple2[[]*pb.FollowItem, bool /* is end */]] {
+			followCounts := F.Pipe1(
+				F.Pipe1(i.F1, A.Map(func(f *model.Follow) int64 { return f.FollowedUserID })),
+				RIOE.Eitherize1(l.svcCtx.FollowCountModel.FindByUserIds),
+			)
+
+			return F.Pipe1(
+				RIOE.SequenceT2(RIOE.Of(i.F1), followCounts),
+				RIOE.Chain(func(t T.Tuple2[[]*model.Follow, []*model.FollowCount]) RIOE.ReaderIOEither[T.Tuple2[[]*pb.FollowItem, bool]] {
+					return F.Pipe4(
+						t.F1,
+						A.Map(func(f *model.Follow) T.Tuple2[*model.Follow, O.Option[int64]] {
+							cnt := F.Pipe2(
+								t.F2,
+								A.FindFirst(func(fc *model.FollowCount) bool { return fc.UserID == f.FollowedUserID }),
+								O.Map(func(fc *model.FollowCount) int64 { return int64(fc.FansCount) }),
+							)
+
+							return T.MakeTuple2(f, cnt)
+						}),
+						A.Map(func(t T.Tuple2[*model.Follow, O.Option[int64]]) *pb.FollowItem {
+							return &pb.FollowItem{
+								Id:             t.F1.ID,
+								FollowedUserId: t.F1.FollowedUserID,
+								FansCount:      O.GetOrElse(F.Constant[int64](0))(t.F2),
+								CreateTime:     t.F1.CreateTime.Unix(),
+							}
+						}),
+						func(items []*pb.FollowItem) T.Tuple2[[]*pb.FollowItem, bool] {
+							return T.MakeTuple2(items, i.F2)
+						},
+						RIOE.Of[T.Tuple2[[]*pb.FollowItem, bool]],
+					)
+				}),
+			)
+		}),
+		RIOE.Chain(func(in T.Tuple2[[]*pb.FollowItem, bool]) RIOE.ReaderIOEither[*pb.FollowListResponse] {
+			lastFollowItem := F.Pipe2(
+				in.F1,
+				A.Last[*pb.FollowItem],
+				O.Fold(
+					func() T.Tuple2[int64, int64] { return T.MakeTuple2[int64, int64](0, 0) },
+					func(f *pb.FollowItem) T.Tuple2[int64, int64] { return T.MakeTuple2(f.Id, f.CreateTime) },
+				),
+			)
+
+			return RIOE.Of(&pb.FollowListResponse{
+				Items:  in.F1,
+				Cursor: lastFollowItem.F2,
+				IsEnd:  in.F2,
+				Id:     lastFollowItem.F1,
+			})
+		}),
+	)
+
+	return E.Unwrap(composeOut(l.ctx)())
 }
 
 func (l *FollowListLogic) cacheFollowUserIds(ctx context.Context, userId, cursor, pageSize int64) ([]int64, error) {
