@@ -3,6 +3,7 @@ module github.com/wangzhou-ccc/beyond
 go 1.21
 
 require (
+	github.com/IBM/fp-go v1.0.57
 	github.com/aliyun/aliyun-oss-go-sdk v3.0.1+incompatible
 	github.com/zeromicro/go-queue v1.1.8
 	github.com/zeromicro/go-zero v1.5.6
